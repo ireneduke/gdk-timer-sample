@@ -49,6 +49,14 @@ public class TimerDrawer implements SurfaceHolder.Callback {
         return mView.getTimer();
     }
 
+    public void setTimerDuration(long timerDurationInMillis) {
+        mView.setTimerDuration(timerDurationInMillis);
+    }
+    
+    public void startTimer() {
+    	mView.getTimer().start();
+    }
+    
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         // Measure and layout the view with the canvas dimensions.

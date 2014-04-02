@@ -16,17 +16,18 @@
 
 package com.google.android.glass.sample.timer;
 
-import com.google.android.glass.timeline.LiveCard;
-import com.google.android.glass.timeline.LiveCard.PublishMode;
-import com.google.android.glass.timeline.TimelineManager;
+import java.util.ArrayList;
 
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import android.os.SystemClock;
-import android.util.Log;
+import android.speech.RecognizerIntent;
+
+import com.google.android.glass.timeline.LiveCard;
+import com.google.android.glass.timeline.LiveCard.PublishMode;
+import com.google.android.glass.timeline.TimelineManager;
 
 /**
  * Service owning the LiveCard living in the timeline.
@@ -65,21 +66,33 @@ public class TimerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if (mLiveCard == null) {
-            mLiveCard = mTimelineManager.createLiveCard(LIVE_CARD_TAG);
+    	ArrayList<String> voiceResults = intent.getExtras().getStringArrayList(RecognizerIntent.EXTRA_RESULTS);
+    	if (voiceResults != null && voiceResults.size() > 0) {
+    		String spokenText = voiceResults.get(0);
+    		//TODO: also get a label as voice input
+    		
+    		if (mLiveCard == null) {
+    			mLiveCard = mTimelineManager.createLiveCard(LIVE_CARD_TAG);
 
-            mLiveCard.setDirectRenderingEnabled(true).getSurfaceHolder().addCallback(mTimerDrawer);
+    			mTimerDrawer.setTimerDuration(getTimerDurationFromVoiceInput(spokenText));
+    			mLiveCard.setDirectRenderingEnabled(true).getSurfaceHolder().addCallback(mTimerDrawer);
+    			mTimerDrawer.startTimer();
+    			
+    			Intent menuIntent = new Intent(this, MenuActivity.class);
+    			menuIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+    			mLiveCard.setAction(PendingIntent.getActivity(this, 0, menuIntent, 0));
 
-            Intent menuIntent = new Intent(this, MenuActivity.class);
-            menuIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            mLiveCard.setAction(PendingIntent.getActivity(this, 0, menuIntent, 0));
+    			mLiveCard.publish(PublishMode.REVEAL);
+    		} else {
+    			// Card is already published
+    			// TODO: Start a new timer
+    			// TODO: Jump to the LiveCard when API is available.
+    		}
 
-            mLiveCard.publish(PublishMode.REVEAL);
-        } else {
-            // TODO(alainv): Jump to the LiveCard when API is available.
-        }
+    		return START_STICKY;
 
-        return START_STICKY;
+    	}
+    	return START_NOT_STICKY;
     }
 
     @Override
@@ -92,4 +105,70 @@ public class TimerService extends Service {
         }
         super.onDestroy();
     }
+    
+	private long getTimerDurationFromVoiceInput(String input) {
+		String[] words = input.split(" ");
+		long timeInMillis = 0;
+		for (int i = 1; i < words.length; i++) {
+			if(words[i].startsWith(getString(R.string.hour))) {
+				if(i > 0) {
+					try {
+						timeInMillis += Integer.valueOf(words[i-1]) * 60 * 60 * 1000;	
+					} catch(NumberFormatException e) {
+						if(i > 0) {
+							if(words[i-1].equals(getString(R.string.a))) {
+								timeInMillis += 60 * 60 * 1000;
+							} else {
+								//TODO: check if the number is spelled out as a word							
+							}
+						}
+					}
+				} else {
+					//assume 1 hour
+					timeInMillis += 60 * 60 * 1000;
+				}
+			} else if(words[i].startsWith(getString(R.string.minute))) {
+				if(i > 0) {
+					try {
+						timeInMillis += Integer.valueOf(words[i-1]) * 60 * 1000;
+					} catch(NumberFormatException e) {
+						if(i > 0) { 
+							if(words[i-1].equals(getString(R.string.a))) {
+								timeInMillis += 60 * 1000;
+							} else {
+								//TODO: check if the number is spelled out as a word
+							}
+						}
+					}
+				} else {
+					//assume 1 minute
+					timeInMillis += 60 * 1000;
+				}
+			} else if(words[i].startsWith(getString(R.string.second))) {
+				if(i > 0) {
+					try {
+						timeInMillis += Integer.valueOf(words[i-1]) * 1000;
+					} catch(NumberFormatException e) {
+						if(i > 0) {
+							if(words[i-1].equals(getString(R.string.a))) {
+								timeInMillis += 1000;								
+							} else {
+								//TODO: check if the number is spelled out as a word
+							}
+						}
+					}
+				} else {
+					//assume 1 second
+					timeInMillis += 1000;
+				}
+			}
+		}
+		
+		if(timeInMillis > 0) {
+			return timeInMillis;
+		} else {
+			return 0;
+		}
+	}
+
 }

@@ -134,6 +134,14 @@ public class TimerView extends FrameLayout {
         return mTimer;
     }
 
+    public void setTimerDuration(long timerDurationInMillis) {
+        mTimer.setDurationMillis(timerDurationInMillis);
+    }
+    
+    public void startTimer() {
+    	mTimer.start();
+    }
+    
     /**
      * Set a {@link ChangeListener}.
      */
@@ -185,7 +193,7 @@ public class TimerView extends FrameLayout {
     }
 
     /**
-     * Plays the "timer finishd" sound once.
+     * Plays the "timer finished" sound once.
      */
     private void playSound() {
          mSoundPool.play(mTimerFinishedSoundId,
